@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Киоск питания</title>
+  <link rel="stylesheet" href="./css/kiosk.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <script defer src="./js/shared.js"></script>
+  <script defer src="./js/face.js"></script>
+  <script defer src="./js/kiosk.js"></script>
+</head>
+<body>
+  <div class="kiosk">
+    <header class="top">
+      <div>
+        <h1 class="brand" id="brandTitle">Питание</h1>
+        <div class="site" id="siteLabel">Подойдите к камере</div>
+      </div>
+    </header>
+
+    <main class="stage" id="stage">
+      <video id="video" playsinline muted autoplay></video>
+      <div class="scan-ring" id="scanRing"></div>
+      <div class="face-pill" id="facePill">Загрузка…</div>
+
+      <div class="overlay" id="choiceOverlay">
+        <div class="sheet" id="choiceSheet">
+          <div id="choiceMain">
+            <h2 class="hello">Приятного аппетита</h2>
+            <p class="who" id="whoName">—</p>
+            <div class="meal-grid">
+              <button class="meal-btn" type="button" data-meal="Завтрак">Спасибо за завтрак</button>
+              <button class="meal-btn" type="button" data-meal="Обед">Спасибо за обед</button>
+              <button class="meal-btn" type="button" data-meal="Ужин">Спасибо за ужин</button>
+              <button class="meal-btn soft" type="button" id="specialOpenBtn">Другое блюдо</button>
+              <button class="meal-btn soft" type="button" id="cancelChoiceBtn">Не сейчас</button>
+            </div>
+          </div>
+
+          <div class="special" id="specialPanel">
+            <h2 class="hello" style="font-size:1.7rem">Другое блюдо</h2>
+            <p class="who" id="specialWho">Когда основное закончилось</p>
+            <label for="specialNote">Что приготовили</label>
+            <textarea id="specialNote" placeholder="Например: гречка с котлетой"></textarea>
+            <label for="specialPrice">Цена, ₸</label>
+            <input id="specialPrice" type="number" inputmode="decimal" min="0" step="1" placeholder="0" />
+            <div class="row">
+              <button class="ghost" type="button" id="specialBackBtn">Назад</button>
+              <button class="primary" type="button" id="specialSaveBtn">Спасибо</button>
+            </div>
+          </div>
+
+          <div class="success" id="successPanel">
+            <div class="mark">✓</div>
+            <h2>Приятного аппетита</h2>
+            <p id="successDetail">Записано</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</body>
+</html>

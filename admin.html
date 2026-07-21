@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Админка — Питание v2</title>
+  <link rel="stylesheet" href="./css/admin.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <script defer src="./js/shared.js"></script>
+  <script defer src="./js/face.js"></script>
+  <script defer src="./js/admin.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <!-- First-time setup -->
+    <section class="setup" id="setupView">
+      <div class="card setup-box">
+        <h1 style="font-family:var(--display);margin:0 0 8px;font-size:1.8rem">Новое заведение</h1>
+        <p class="hint">Один раз: URL Google Apps Script, название и PIN администратора. Потом всё редактируется в настройках.</p>
+
+        <div class="field">
+          <label for="wizApi">URL веб-приложения (.../exec)</label>
+          <input id="wizApi" placeholder="https://script.google.com/macros/s/.../exec" />
+        </div>
+        <div class="field">
+          <label for="wizSite">Название точки</label>
+          <input id="wizSite" placeholder="Столовая №1" />
+        </div>
+        <div class="field">
+          <label for="wizOperator">Ответственный</label>
+          <input id="wizOperator" placeholder="ФИО" />
+        </div>
+        <div class="field">
+          <label for="wizPin">PIN администратора (4–8 цифр)</label>
+          <input id="wizPin" type="password" inputmode="numeric" maxlength="8" placeholder="••••" />
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="wizBr">Цена завтрака</label><input id="wizBr" type="number" min="0" placeholder="необяз." /></div>
+          <div class="field"><label for="wizLu">Цена обеда</label><input id="wizLu" type="number" min="0" placeholder="необяз." /></div>
+        </div>
+        <div class="field"><label for="wizDi">Цена ужина</label><input id="wizDi" type="number" min="0" placeholder="необяз." /></div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" type="button" id="wizSaveBtn">Сохранить и войти</button>
+          <button class="btn btn-ghost" type="button" id="wizPingBtn">Проверить связь</button>
+        </div>
+        <div class="status" id="wizStatus"></div>
+        <p class="hint" style="margin-top:16px">Инструкция по Google Таблице — в файле <code>НАСТРОЙКА.md</code>.</p>
+      </div>
+    </section>
+
+    <!-- PIN gate -->
+    <section class="locked" id="lockView">
+      <div class="card pin-box">
+        <h1 style="font-family:var(--display);margin:0 0 8px;font-size:1.8rem">Админка</h1>
+        <p class="hint">Введите PIN, чтобы открыть сотрудников, журнал и настройки.</p>
+        <div class="field">
+          <label for="lockPin">PIN</label>
+          <input id="lockPin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" />
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" type="button" id="lockBtn">Войти</button>
+          <a class="btn btn-ghost" href="./index.html" style="text-decoration:none;display:inline-flex;align-items:center">Открыть киоск</a>
+        </div>
+        <div class="status" id="lockStatus"></div>
+      </div>
+    </section>
+
+    <!-- Main admin -->
+    <section class="locked" id="appView">
+      <header class="hero">
+        <div>
+          <h1 id="appTitle">Админка</h1>
+          <p id="appSub">Управление точкой питания</p>
+        </div>
+        <div class="btn-row">
+          <a class="btn btn-ghost" href="./index.html" style="text-decoration:none">Киоск</a>
+          <button class="btn btn-dark" type="button" id="logoutBtn">Выйти</button>
+        </div>
+      </header>
+
+      <nav class="nav" id="tabs">
+        <button type="button" data-tab="employees" class="active">Сотрудники</button>
+        <button type="button" data-tab="journal">Журнал</button>
+        <button type="button" data-tab="settings">Настройки</button>
+      </nav>
+
+      <div class="panel show" id="tab-employees">
+        <div class="grid2">
+          <div class="card">
+            <h2>Карточка сотрудника</h2>
+            <input type="hidden" id="empId" />
+            <div class="field"><label for="empName">ФИО *</label><input id="empName" /></div>
+            <div class="grid2">
+              <div class="field"><label for="empStaff">Табельный №</label><input id="empStaff" /></div>
+              <div class="field"><label for="empDept">Отдел</label><input id="empDept" /></div>
+            </div>
+            <div class="field"><label for="empPos">Должность</label><input id="empPos" /></div>
+
+            <div class="video-box" style="margin:10px 0 12px">
+              <video id="empVideo" playsinline muted autoplay></video>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-ghost" type="button" id="camBtn">Камера</button>
+              <button class="btn btn-primary" type="button" id="saveEmpBtn">Сохранить с Face ID</button>
+              <button class="btn btn-ghost" type="button" id="newEmpBtn">Новый</button>
+            </div>
+            <div class="status" id="empStatus"></div>
+          </div>
+
+          <div class="card">
+            <h2>Список</h2>
+            <div class="field"><input id="empSearch" placeholder="Поиск по имени…" /></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th></th><th>ФИО</th><th>Отдел</th><th>Face</th></tr></thead>
+                <tbody id="empTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="tab-journal">
+        <div class="card">
+          <h2>Журнал питания</h2>
+          <div class="stats" id="stats"></div>
+          <div class="grid2">
+            <div class="field"><label for="fFrom">С даты</label><input id="fFrom" type="date" /></div>
+            <div class="field"><label for="fTo">По дату</label><input id="fTo" type="date" /></div>
+          </div>
+          <div class="field"><label for="fType">Тип</label>
+            <select id="fType">
+              <option value="">Все</option>
+              <option>Завтрак</option>
+              <option>Обед</option>
+              <option>Ужин</option>
+              <option>Специальное</option>
+            </select>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-ghost" type="button" id="refreshMealsBtn">Обновить</button>
+            <button class="btn btn-ghost" type="button" id="exportCsvBtn">CSV</button>
+          </div>
+          <div class="table-wrap" style="margin-top:12px">
+            <table>
+              <thead>
+                <tr>
+                  <th>Время</th><th>Сотрудник</th><th>Тип</th><th>Цена</th><th>Примечание</th>
+                </tr>
+              </thead>
+              <tbody id="mealTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" id="tab-settings">
+        <div class="card">
+          <h2>Точка и цены</h2>
+          <p class="hint">Меняется только под PIN. На киоске настройки не сбиваются — они на сервере.</p>
+          <div class="field"><label for="setSite">Название</label><input id="setSite" /></div>
+          <div class="field"><label for="setOperator">Ответственный</label><input id="setOperator" /></div>
+          <div class="grid2">
+            <div class="field"><label for="setBr">Завтрак, ₸</label><input id="setBr" type="number" min="0" /></div>
+            <div class="field"><label for="setLu">Обед, ₸</label><input id="setLu" type="number" min="0" /></div>
+          </div>
+          <div class="field"><label for="setDi">Ужин, ₸</label><input id="setDi" type="number" min="0" /></div>
+          <div class="field"><label for="setPinConfirm">Текущий PIN (для сохранения)</label><input id="setPinConfirm" type="password" inputmode="numeric" maxlength="8" /></div>
+          <div class="btn-row"><button class="btn btn-primary" type="button" id="saveSettingsBtn">Сохранить</button></div>
+          <div class="status" id="setStatus"></div>
+        </div>
+
+        <div class="card">
+          <h2>Сменить PIN</h2>
+          <div class="grid2">
+            <div class="field"><label for="pinOld">Текущий</label><input id="pinOld" type="password" inputmode="numeric" maxlength="8" /></div>
+            <div class="field"><label for="pinNew">Новый</label><input id="pinNew" type="password" inputmode="numeric" maxlength="8" /></div>
+          </div>
+          <div class="btn-row"><button class="btn btn-dark" type="button" id="changePinBtn">Обновить PIN</button></div>
+          <div class="status" id="pinStatus"></div>
+        </div>
+
+        <div class="card">
+          <h2>Сервер</h2>
+          <div class="field"><label for="setApi">URL Apps Script</label><input id="setApi" /></div>
+          <div class="btn-row">
+            <button class="btn btn-ghost" type="button" id="saveApiBtn">Сохранить URL</button>
+            <button class="btn btn-ghost" type="button" id="pingBtn">Проверить</button>
+          </div>
+          <div class="status" id="apiStatus"></div>
+          <p class="hint" style="margin-top:12px">Киоск: <code id="kioskLink"></code></p>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div class="toast" id="toast"></div>
+</body>
+</html>
