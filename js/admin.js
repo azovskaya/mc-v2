@@ -291,6 +291,22 @@
         const ping = await apiGet('ping');
         if (!ping.ok) throw new Error(ping.message || 'Нет связи');
 
+        // Сервер уже настроен другим устройством — не пересоздаём,
+        // а входим по существующему PIN.
+        const cur = (await apiGet('getSettings')).settings || {};
+        if (cur.hasPin) {
+          const verify = await apiPost('verifyPin', { pin });
+          if (!verify.ok) {
+            setStatus('wizStatus', 'Это заведение уже настроено. Неверный PIN.', 'err');
+            return;
+          }
+          saveLocal({ siteName: cur.siteName || site, operator: cur.operator || '', setupDone: true });
+          setAuthed(true);
+          setStatus('wizStatus', 'Вход выполнен', 'ok');
+          await enterApp();
+          return;
+        }
+
         const pinRes = await apiPost('setPin', { newPin: pin });
         if (!pinRes.ok) throw new Error(pinRes.message || 'PIN не сохранён');
 
@@ -429,8 +445,12 @@
 
     try {
       const s = await refreshSettings();
-      if (!s.setupDone && !s.hasPin) {
+      // Без заданного PIN войти нельзя — всегда показываем мастер,
+      // чтобы после сброса pinHash можно было настроить заново.
+      if (!s.hasPin) {
         $('wizApi').value = api;
+        if (s.siteName) $('wizSite').value = s.siteName;
+        if (s.operator) $('wizOperator').value = s.operator;
         show('setupView');
         return;
       }
