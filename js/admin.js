@@ -113,17 +113,41 @@
     setStatus('empStatus', '');
   }
 
+  let _startingCam = false;
+
+  function hideCamHint() { $('camHint')?.classList.add('hidden'); }
+  function showCamHint(text) {
+    const h = $('camHint');
+    if (h) { h.textContent = text; h.classList.remove('hidden'); }
+  }
+
   async function startEmpCamera() {
+    if (_startingCam) return;
+    const video = $('empVideo');
+    // Если камера уже реально показывает картинку — просто прячем подсказку
+    if (video && video.videoWidth > 0 && !video.paused) {
+      state.cameraOn = true;
+      hideCamHint();
+      return;
+    }
+    _startingCam = true;
     try {
       await loadFaceModels('./models');
-      if (!state.cameraOn) {
-        await startCamera($('empVideo'));
+      if (!state.cameraOn || !video.videoWidth) {
+        await startCamera(video);
         state.cameraOn = true;
       }
-      $('camHint')?.classList.add('hidden');
+      // Прячем подсказку только когда пошёл реальный кадр
+      if (await waitForVideoReady(video, 5000)) hideCamHint();
+      else showCamHint('Камера включается…');
     } catch (e) {
-      const h = $('camHint');
-      if (h) { h.classList.remove('hidden'); h.textContent = 'Нет доступа к камере'; }
+      state.cameraOn = false;
+      const msg = (e && /denied|not allowed|permission/i.test(String(e.message || e)))
+        ? 'Разрешите доступ к камере в браузере'
+        : 'Нет доступа к камере';
+      showCamHint(msg);
+    } finally {
+      _startingCam = false;
     }
   }
 
@@ -443,6 +467,12 @@
     $('cancelEditBtn').addEventListener('click', clearEmployeeForm);
     $('saveEmpBtn').addEventListener('click', saveEmployee);
     $('empSearch').addEventListener('input', renderEmployees);
+
+    // Как только видео реально пошло — убираем подсказку поверх картинки
+    const empVideo = $('empVideo');
+    ['playing', 'loadeddata', 'canplay'].forEach(ev =>
+      empVideo.addEventListener(ev, () => { if (empVideo.videoWidth > 0) hideCamHint(); })
+    );
 
     $('refreshMealsBtn').addEventListener('click', () => refreshMeals().catch(e => toast(String(e.message || e), 'err')));
     ['fFrom', 'fTo', 'fType'].forEach(id => $(id).addEventListener('change', renderMeals));
