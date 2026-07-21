@@ -117,6 +117,23 @@ input, select, textarea {
   cursor: pointer;
   font-weight: 600;
 }
+.btn:disabled {
+  opacity: 0.55;
+  cursor: progress;
+  position: relative;
+  overflow: hidden;
+}
+.btn:disabled::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+  animation: btnProgress 1.1s linear infinite;
+}
+@keyframes btnProgress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
 .btn-primary { background: var(--accent); color: #fff; }
 .btn-dark { background: var(--ink); color: #fff; }
 .btn-ghost { background: #fff; border: 1px solid var(--line); }

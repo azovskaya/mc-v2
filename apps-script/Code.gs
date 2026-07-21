@@ -23,7 +23,7 @@ var PHOTO_FOLDER_NAME = 'MealKioskPhotos';
 
 var EMPLOYEE_HEADERS = [
   'employeeId', 'fullName', 'staffId', 'department', 'position',
-  'photo', 'faceDescriptor', 'active', 'createdAt', 'updatedAt'
+  'photo', 'photoThumb', 'faceDescriptor', 'active', 'createdAt', 'updatedAt'
 ];
 
 var MEAL_HEADERS = [
@@ -47,7 +47,7 @@ function doGet(e) {
         return respond({
           ok: true,
           message: 'pong',
-          version: '2.0',
+          version: '2.1',
           dupGuardSeconds: DUP_GUARD_SECONDS
         });
       case 'listEmployees':
@@ -220,6 +220,8 @@ function saveEmployee(body) {
     department: String(body.department || '').slice(0, 80),
     position: String(body.position || '').slice(0, 80),
     photo: preparePhoto_(body.photo || (existing && existing.photo) || '', 'emp_' + id + '.jpg'),
+    // Мелкая base64-миниатюра хранится прямо в ячейке — не зависит от Drive
+    photoThumb: truncatePhoto_(body.photoThumb || (existing && existing.photoThumb) || ''),
     faceDescriptor: body.faceDescriptor || (existing && existing.faceDescriptor) || '',
     active: body.active !== false,
     createdAt: (existing && existing.createdAt) || now,

@@ -67,7 +67,7 @@
     });
     $('empTable').innerHTML = rows.map(e => {
       const face = parseFaceDescriptor(e.faceDescriptor) ? '✓' : '—';
-      const src = photoUrl(e.photo);
+      const src = (String(e.photoThumb || '').startsWith('data:image') && e.photoThumb) || photoUrl(e.photo);
       return `<tr data-id="${esc(e.employeeId)}" style="cursor:pointer">
         <td>${src ? `<img class="thumb" src="${esc(src)}" alt="" />` : ''}</td>
         <td><b>${esc(e.fullName)}</b><div class="hint">${esc(e.staffId || '')}</div></td>
@@ -175,19 +175,35 @@
     }
   }
 
+  let _savingEmp = false;
+
   async function saveEmployee() {
+    if (_savingEmp) return;
     const fullName = $('empName').value.trim();
     if (!fullName) return setStatus('empStatus', 'Укажите ФИО', 'err');
 
+    const btn = $('saveEmpBtn');
+    _savingEmp = true;
+    btn.disabled = true;
+    const origText = btn.textContent;
+
+    const step = t => {
+      btn.textContent = t;
+      setStatus('empStatus', t);
+    };
+
     try {
-      setStatus('empStatus', 'Сканирование лица…');
+      step('Камера…');
       await ensureModelsAndCam();
+      step('Сканирование лица…');
       const desc = await computeDescriptorFromVideo($('empVideo'));
       if (!desc) {
         setStatus('empStatus', 'Лицо не найдено — встаньте ровнее', 'err');
         return;
       }
       const photo = await captureFrame($('empVideo'), 420, 0.6);
+      const photoThumb = await captureFrame($('empVideo'), 120, 0.5);
+      step('Сохранение…');
       const res = await apiPost('saveEmployee', {
         employeeId: $('empId').value || undefined,
         fullName,
@@ -196,6 +212,7 @@
         position: $('empPos').value.trim(),
         faceDescriptor: desc.join(','),
         photo,
+        photoThumb,
         active: true
       });
       if (!res.ok) {
@@ -208,6 +225,10 @@
       selectEmployee(res.employeeId);
     } catch (err) {
       setStatus('empStatus', String(err.message || err), 'err');
+    } finally {
+      _savingEmp = false;
+      btn.disabled = false;
+      btn.textContent = origText;
     }
   }
 
