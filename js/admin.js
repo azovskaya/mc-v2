@@ -248,6 +248,10 @@
 
       const photo = await captureFrame($('empVideo'), 420, 0.6);
       const photoThumb = await captureFrame($('empVideo'), 160, 0.55);
+      if (!photoThumb || !photoThumb.startsWith('data:image')) {
+        setStatus('empStatus', 'Не удалось снять фото — подождите, пока включится камера, и повторите', 'err');
+        return;
+      }
       step('Сохранение…');
       const res = await apiPost('saveEmployee', {
         employeeId: editingId || undefined,

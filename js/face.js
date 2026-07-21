@@ -177,14 +177,28 @@ function stopFaceScan() {
   }
 }
 
+async function waitForVideoReady(videoEl, timeoutMs = 4000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (videoEl && videoEl.readyState >= 2 && videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
+      return true;
+    }
+    await new Promise(r => setTimeout(r, 100));
+  }
+  return !!(videoEl && videoEl.videoWidth > 0);
+}
+
 async function captureFrame(videoEl, maxW = 360, quality = 0.55) {
-  if (!videoEl || videoEl.readyState < 2) return '';
+  await waitForVideoReady(videoEl);
+  if (!videoEl || !videoEl.videoWidth || !videoEl.videoHeight) return '';
   const canvas = document.createElement('canvas');
   const scale = Math.min(1, maxW / videoEl.videoWidth);
-  canvas.width = Math.round(videoEl.videoWidth * scale);
-  canvas.height = Math.round(videoEl.videoHeight * scale);
-  canvas.getContext('2d').drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL('image/jpeg', quality);
+  canvas.width = Math.max(1, Math.round(videoEl.videoWidth * scale));
+  canvas.height = Math.max(1, Math.round(videoEl.videoHeight * scale));
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+  const url = canvas.toDataURL('image/jpeg', quality);
+  return url.startsWith('data:image') ? url : '';
 }
 
 async function computeDescriptorFromVideo(videoEl) {
