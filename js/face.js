@@ -177,28 +177,76 @@ function stopFaceScan() {
   }
 }
 
-async function waitForVideoReady(videoEl, timeoutMs = 4000) {
+async function waitForVideoReady(videoEl, timeoutMs = 5000) {
+  if (!videoEl) return false;
+  try { await videoEl.play(); } catch {}
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    if (videoEl && videoEl.readyState >= 2 && videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
+    if (videoEl.readyState >= 2 && videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
       return true;
     }
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise(r => setTimeout(r, 80));
   }
-  return !!(videoEl && videoEl.videoWidth > 0);
+  return !!(videoEl.videoWidth > 0 && videoEl.videoHeight > 0);
+}
+
+function isValidPhotoDataUrl(url) {
+  // Safari иногда отдаёт «data:,» или JPEG без полезной нагрузки
+  return typeof url === 'string'
+    && url.startsWith('data:image/')
+    && url.length > 800
+    && !url.endsWith('base64,');
 }
 
 async function captureFrame(videoEl, maxW = 360, quality = 0.55) {
   await waitForVideoReady(videoEl);
   if (!videoEl || !videoEl.videoWidth || !videoEl.videoHeight) return '';
-  const canvas = document.createElement('canvas');
+
   const scale = Math.min(1, maxW / videoEl.videoWidth);
-  canvas.width = Math.max(1, Math.round(videoEl.videoWidth * scale));
-  canvas.height = Math.max(1, Math.round(videoEl.videoHeight * scale));
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-  const url = canvas.toDataURL('image/jpeg', quality);
-  return url.startsWith('data:image') ? url : '';
+  const w = Math.max(1, Math.round(videoEl.videoWidth * scale));
+  const h = Math.max(1, Math.round(videoEl.videoHeight * scale));
+
+  // Несколько попыток: Safari иногда отдаёт пустой кадр с первой попытки
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try { await videoEl.play(); } catch {}
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return '';
+
+    try {
+      // createImageBitmap стабильнее на Safari, чем прямой drawImage
+      if (typeof createImageBitmap === 'function') {
+        const bmp = await createImageBitmap(videoEl);
+        ctx.drawImage(bmp, 0, 0, w, h);
+        if (bmp.close) bmp.close();
+      } else {
+        ctx.drawImage(videoEl, 0, 0, w, h);
+      }
+    } catch {
+      try { ctx.drawImage(videoEl, 0, 0, w, h); } catch { /* next attempt */ }
+    }
+
+    let url = '';
+    try {
+      url = canvas.toDataURL('image/jpeg', quality);
+    } catch {
+      try { url = canvas.toDataURL('image/png'); } catch { url = ''; }
+    }
+
+    if (isValidPhotoDataUrl(url)) return url;
+
+    // PNG как запасной вариант, если JPEG пустой
+    try {
+      url = canvas.toDataURL('image/png');
+      if (isValidPhotoDataUrl(url)) return url;
+    } catch {}
+
+    await new Promise(r => setTimeout(r, 120));
+  }
+  return '';
 }
 
 async function computeDescriptorFromVideo(videoEl) {

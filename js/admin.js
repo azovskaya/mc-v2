@@ -220,6 +220,18 @@
       step('Камера…');
       $('camHint')?.classList.add('hidden');
       await ensureModelsAndCam();
+
+      // Сначала кадр (Safari надёжнее, пока видео только что играет), потом Face ID
+      step('Фото…');
+      const photo = await captureFrame($('empVideo'), 420, 0.6);
+      const photoThumb = await captureFrame($('empVideo'), 160, 0.55);
+      if (!isValidPhotoDataUrl(photoThumb) && !isValidPhotoDataUrl(photo)) {
+        setStatus('empStatus', 'Не удалось снять фото. Убедитесь, что в окошке видно ваше лицо, и нажмите ещё раз.', 'err');
+        return;
+      }
+      const thumb = isValidPhotoDataUrl(photoThumb) ? photoThumb : photo;
+      const full = isValidPhotoDataUrl(photo) ? photo : photoThumb;
+
       step('Сканирование лица…');
       const desc = await computeDescriptorFromVideo($('empVideo'));
       if (!desc) {
@@ -246,12 +258,6 @@
         }
       }
 
-      const photo = await captureFrame($('empVideo'), 420, 0.6);
-      const photoThumb = await captureFrame($('empVideo'), 160, 0.55);
-      if (!photoThumb || !photoThumb.startsWith('data:image')) {
-        setStatus('empStatus', 'Не удалось снять фото — подождите, пока включится камера, и повторите', 'err');
-        return;
-      }
       step('Сохранение…');
       const res = await apiPost('saveEmployee', {
         employeeId: editingId || undefined,
@@ -260,8 +266,8 @@
         department: $('empDept').value.trim(),
         position: $('empPos').value.trim(),
         faceDescriptor: desc.join(','),
-        photo,
-        photoThumb,
+        photo: full,
+        photoThumb: thumb,
         active: true
       });
       if (!res.ok) {
@@ -270,7 +276,7 @@
       }
       // Мгновенно показываем в списке даже до перезагрузки с сервера
       if (res.employee) {
-        res.employee.photoThumb = res.employee.photoThumb || photoThumb;
+        res.employee.photoThumb = res.employee.photoThumb || thumb;
       }
       toast(editingId ? 'Сотрудник обновлён' : 'Сотрудник добавлен');
       await refreshEmployees();
