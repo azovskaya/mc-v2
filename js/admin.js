@@ -66,15 +66,20 @@
       return `${e.fullName} ${e.department} ${e.staffId}`.toLowerCase().includes(q);
     });
     $('empTable').innerHTML = rows.map(e => {
-      const face = parseFaceDescriptor(e.faceDescriptor) ? '✓' : '—';
+      const hasFace = !!parseFaceDescriptor(e.faceDescriptor);
       const src = (String(e.photoThumb || '').startsWith('data:image') && e.photoThumb) || photoUrl(e.photo);
+      const avatar = src
+        ? `<img class="thumb" src="${esc(src)}" alt="${esc(e.fullName)}" />`
+        : `<div class="thumb thumb-empty">${esc((e.fullName || '?').trim().charAt(0).toUpperCase())}</div>`;
+      const faceBadge = hasFace
+        ? `<span class="face-dot" title="Face ID сохранён"></span>`
+        : `<span class="face-dot off" title="Без Face ID"></span>`;
       return `<tr data-id="${esc(e.employeeId)}" style="cursor:pointer">
-        <td>${src ? `<img class="thumb" src="${esc(src)}" alt="" />` : ''}</td>
+        <td><div class="avatar-cell">${avatar}${faceBadge}</div></td>
         <td><b>${esc(e.fullName)}</b><div class="hint">${esc(e.staffId || '')}</div></td>
         <td>${esc(e.department || '')}</td>
-        <td>${face}</td>
       </tr>`;
-    }).join('') || `<tr><td colspan="4">Пока никого нет</td></tr>`;
+    }).join('') || `<tr><td colspan="3">Пока никого нет</td></tr>`;
 
     $('empTable').querySelectorAll('tr[data-id]').forEach(tr => {
       tr.addEventListener('click', () => selectEmployee(tr.dataset.id));

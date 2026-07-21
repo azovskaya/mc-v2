@@ -165,9 +165,34 @@ th { color: var(--muted); font-weight: 600; font-size: 0.8rem; }
 .badge.special { background: #fff1d6; color: #8a5a00; }
 
 .thumb {
-  width: 44px; height: 44px; object-fit: cover;
-  border-radius: 10px; background: #eee;
+  width: 48px; height: 48px; object-fit: cover;
+  border-radius: 12px; background: #eee;
+  display: block;
 }
+.thumb-empty {
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.2rem;
+  background: linear-gradient(135deg, #ff9b62, #ff7a45);
+}
+.avatar-cell {
+  position: relative;
+  width: 48px;
+  height: 48px;
+}
+.face-dot {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid var(--card);
+  background: #34a058;
+}
+.face-dot.off { background: #c9c2ba; }
 
 .locked, .setup, .panel { display: none; }
 .locked.show, .setup.show, .panel.show { display: block; }
