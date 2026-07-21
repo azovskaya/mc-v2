@@ -90,7 +90,10 @@
     $('empStaff').value = e.staffId || '';
     $('empDept').value = e.department || '';
     $('empPos').value = e.position || '';
+    $('saveEmpBtn').textContent = 'Обновить с Face ID';
+    $('cancelEditBtn').style.display = '';
     setStatus('empStatus', 'Редактирование: ' + e.fullName);
+    startEmpCamera();
   }
 
   function clearEmployeeForm() {
@@ -100,7 +103,23 @@
     $('empStaff').value = '';
     $('empDept').value = '';
     $('empPos').value = '';
-    setStatus('empStatus', 'Новый сотрудник');
+    $('saveEmpBtn').textContent = 'Сохранить с Face ID';
+    $('cancelEditBtn').style.display = 'none';
+    setStatus('empStatus', '');
+  }
+
+  async function startEmpCamera() {
+    try {
+      await loadFaceModels('./models');
+      if (!state.cameraOn) {
+        await startCamera($('empVideo'));
+        state.cameraOn = true;
+      }
+      $('camHint')?.classList.add('hidden');
+    } catch (e) {
+      const h = $('camHint');
+      if (h) { h.classList.remove('hidden'); h.textContent = 'Нет доступа к камере'; }
+    }
   }
 
   function mealDate(m) {
@@ -194,18 +213,39 @@
 
     try {
       step('Камера…');
+      $('camHint')?.classList.add('hidden');
       await ensureModelsAndCam();
       step('Сканирование лица…');
       const desc = await computeDescriptorFromVideo($('empVideo'));
       if (!desc) {
-        setStatus('empStatus', 'Лицо не найдено — встаньте ровнее', 'err');
+        setStatus('empStatus', 'Лицо не найдено — встаньте ровнее к камере', 'err');
         return;
       }
+
+      // Проверка на дубликат: то же лицо уже у другого сотрудника?
+      const editingId = $('empId').value || null;
+      const dup = findDuplicateByFace(desc, editingId);
+      if (dup) {
+        setStatus('empStatus', `Это лицо уже зарегистрировано: ${dup.fullName}`, 'err');
+        toast('Такой сотрудник уже есть', 'err');
+        return;
+      }
+      // Проверка по имени (без учёта регистра), если добавляем нового
+      if (!editingId) {
+        const sameName = state.employees.find(
+          e => (e.fullName || '').trim().toLowerCase() === fullName.toLowerCase()
+        );
+        if (sameName) {
+          setStatus('empStatus', `Сотрудник «${fullName}» уже есть в списке`, 'err');
+          return;
+        }
+      }
+
       const photo = await captureFrame($('empVideo'), 420, 0.6);
-      const photoThumb = await captureFrame($('empVideo'), 120, 0.5);
+      const photoThumb = await captureFrame($('empVideo'), 160, 0.55);
       step('Сохранение…');
       const res = await apiPost('saveEmployee', {
-        employeeId: $('empId').value || undefined,
+        employeeId: editingId || undefined,
         fullName,
         staffId: $('empStaff').value.trim(),
         department: $('empDept').value.trim(),
@@ -219,17 +259,41 @@
         setStatus('empStatus', res.message || 'Ошибка', 'err');
         return;
       }
-      setStatus('empStatus', 'Сохранено с Face ID', 'ok');
-      toast('Сотрудник сохранён');
+      // Мгновенно показываем в списке даже до перезагрузки с сервера
+      if (res.employee) {
+        res.employee.photoThumb = res.employee.photoThumb || photoThumb;
+      }
+      toast(editingId ? 'Сотрудник обновлён' : 'Сотрудник добавлен');
       await refreshEmployees();
-      selectEmployee(res.employeeId);
+      clearEmployeeForm();
+      setStatus('empStatus', `Готово: ${fullName}. Можно добавлять следующего.`, 'ok');
     } catch (err) {
       setStatus('empStatus', String(err.message || err), 'err');
     } finally {
       _savingEmp = false;
       btn.disabled = false;
-      btn.textContent = origText;
+      btn.textContent = state.selectedId ? 'Обновить с Face ID' : origText;
     }
+  }
+
+  function faceDistance(a, b) {
+    let s = 0;
+    for (let i = 0; i < a.length; i++) {
+      const d = a[i] - b[i];
+      s += d * d;
+    }
+    return Math.sqrt(s);
+  }
+
+  function findDuplicateByFace(desc, exceptId) {
+    const target = Float32Array.from(desc);
+    for (const e of state.employees) {
+      if (exceptId && String(e.employeeId) === String(exceptId)) continue;
+      const d = parseFaceDescriptor(e.faceDescriptor);
+      if (!d) continue;
+      if (faceDistance(target, d) < 0.45) return e;
+    }
+    return null;
   }
 
   function exportCsv() {
@@ -258,6 +322,12 @@
         btn.classList.add('active');
         document.querySelectorAll('.panel').forEach(p => p.classList.remove('show'));
         $('tab-' + btn.dataset.tab).classList.add('show');
+        if (btn.dataset.tab === 'employees') {
+          startEmpCamera();
+        } else {
+          stopCamera($('empVideo'));
+          state.cameraOn = false;
+        }
       });
     });
   }
@@ -355,16 +425,8 @@
       show('lockView');
     });
 
-    $('newEmpBtn').addEventListener('click', clearEmployeeForm);
+    $('cancelEditBtn').addEventListener('click', clearEmployeeForm);
     $('saveEmpBtn').addEventListener('click', saveEmployee);
-    $('camBtn').addEventListener('click', async () => {
-      try {
-        await ensureModelsAndCam();
-        setStatus('empStatus', 'Камера включена', 'ok');
-      } catch (e) {
-        setStatus('empStatus', String(e.message || e), 'err');
-      }
-    });
     $('empSearch').addEventListener('input', renderEmployees);
 
     $('refreshMealsBtn').addEventListener('click', () => refreshMeals().catch(e => toast(String(e.message || e), 'err')));
@@ -432,6 +494,7 @@
     $('fFrom').value = today;
     $('fTo').value = today;
     await Promise.all([refreshEmployees(), refreshMeals()]);
+    startEmpCamera();
   }
 
   async function boot() {

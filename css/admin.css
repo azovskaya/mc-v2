@@ -205,6 +205,18 @@ th { color: var(--muted); font-weight: 600; font-size: 0.8rem; }
   transform: scaleX(-1);
   display: block;
 }
+.cam-hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(255,255,255,0.85);
+  background: rgba(0,0,0,0.35);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 12px;
+}
+.cam-hint.hidden { display: none; }
 
 .stats {
   display: grid;

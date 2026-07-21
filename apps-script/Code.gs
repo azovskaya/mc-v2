@@ -47,7 +47,7 @@ function doGet(e) {
         return respond({
           ok: true,
           message: 'pong',
-          version: '2.1',
+          version: '2.2',
           dupGuardSeconds: DUP_GUARD_SECONDS
         });
       case 'listEmployees':
@@ -178,6 +178,24 @@ function objectToRow_(headers, obj) {
   });
 }
 
+/**
+ * Записывает объект в строку, ориентируясь на РЕАЛЬНЫЙ порядок
+ * заголовков листа, а не на порядок констант. Это защищает от
+ * рассинхрона, когда новые колонки (например photoThumb) добавлены
+ * в конец существующего листа.
+ */
+function upsertByHeaders_(sheet, idCol, record) {
+  var data = sheet.getDataRange().getValues();
+  var headers = (data[0] || []).map(String);
+  var row = headers.map(function (h) {
+    return record[h] !== undefined && record[h] !== null ? record[h] : '';
+  });
+  var rowNum = findRowById_(sheet, idCol, record[idCol]);
+  if (rowNum) sheet.getRange(rowNum, 1, 1, headers.length).setValues([row]);
+  else sheet.appendRow(row);
+  return rowNum;
+}
+
 function nowIso_() { return new Date().toISOString(); }
 
 function sha256_(text) {
@@ -228,9 +246,7 @@ function saveEmployee(body) {
     updatedAt: now
   };
 
-  var row = objectToRow_(EMPLOYEE_HEADERS, record);
-  if (rowNum) sheet.getRange(rowNum, 1, 1, EMPLOYEE_HEADERS.length).setValues([row]);
-  else sheet.appendRow(row);
+  upsertByHeaders_(sheet, 'employeeId', record);
 
   logEvent_({
     type: rowNum ? 'employee_update' : 'employee_create',
