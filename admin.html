@@ -4,11 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Admin Panel — Питание v2</title>
-  <link rel="stylesheet" href="./css/admin.css?v=7" />
+  <link rel="stylesheet" href="./css/admin.css?v=8" />
   <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-  <script defer src="./js/shared.js?v=7"></script>
-  <script defer src="./js/face.js?v=7"></script>
-  <script defer src="./js/admin.js?v=7"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script defer src="./js/shared.js?v=8"></script>
+  <script defer src="./js/face.js?v=8"></script>
+  <script defer src="./js/admin.js?v=8"></script>
 </head>
 <body>
   <div class="wrap">
@@ -82,6 +83,7 @@
       <nav class="nav" id="tabs">
         <button type="button" data-tab="employees" class="active">Сотрудники</button>
         <button type="button" data-tab="journal">Журнал</button>
+        <button type="button" data-tab="reports">Отчёты</button>
         <button type="button" data-tab="settings">Настройки</button>
       </nav>
 
@@ -152,6 +154,59 @@
               <tbody id="mealTable"></tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <div class="panel" id="tab-reports">
+        <div class="card">
+          <div class="report-head">
+            <div>
+              <h2>Отчёты</h2>
+              <p class="hint">Кто, когда и что ел — с итоговой суммой к удержанию из зарплаты.</p>
+            </div>
+            <button class="btn btn-primary" type="button" id="exportXlsxBtn">Скачать Excel</button>
+          </div>
+
+          <div class="report-filters">
+            <div class="field"><label for="rFrom">С даты</label><input id="rFrom" type="date" /></div>
+            <div class="field"><label for="rTo">По дату</label><input id="rTo" type="date" /></div>
+            <div class="field"><label for="rEmployee">Сотрудник</label>
+              <select id="rEmployee"><option value="">Все сотрудники</option></select>
+            </div>
+            <div class="field"><label for="rDepartment">Отдел</label>
+              <select id="rDepartment"><option value="">Все отделы</option></select>
+            </div>
+          </div>
+
+          <div class="stats" id="reportStats"></div>
+
+          <h3 class="report-title">Сводка по сотрудникам</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Сотрудник</th><th>Табельный №</th><th>Отдел</th>
+                  <th>Завтраки</th><th>Обеды</th><th>Ужины</th><th>Другие</th>
+                  <th>Всего</th><th>К удержанию</th>
+                </tr>
+              </thead>
+              <tbody id="reportSummaryTable"></tbody>
+            </table>
+          </div>
+
+          <h3 class="report-title">Подробно по дням</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Дата</th><th>Время</th><th>Сотрудник</th><th>Табельный №</th>
+                  <th>Отдел</th><th>Питание</th><th>Блюдо</th><th>Цена</th>
+                </tr>
+              </thead>
+              <tbody id="reportDetailsTable"></tbody>
+            </table>
+          </div>
+          <div class="status" id="reportStatus"></div>
         </div>
       </div>
 

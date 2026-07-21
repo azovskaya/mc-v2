@@ -54,9 +54,10 @@
   }
 
   async function refreshMeals() {
-    const res = await apiGet('listMeals', { limit: 2000 });
+    const res = await apiGet('listMeals', { limit: 5000 });
     state.meals = res.items || [];
     renderMeals();
+    if ($('tab-reports')?.classList.contains('show')) renderReport();
   }
 
   function renderEmployees() {
@@ -335,6 +336,174 @@
     return null;
   }
 
+  /* ─── Отчёты для бухгалтерии ─── */
+
+  const MEAL_TYPES = ['Завтрак', 'Обед', 'Ужин', 'Специальное'];
+
+  function reportFilteredMeals() {
+    const from = $('rFrom').value;
+    const to = $('rTo').value;
+    const emp = $('rEmployee').value;
+    const dept = $('rDepartment').value;
+    return state.meals.filter(m => {
+      const d = mealDate(m);
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      if (emp && String(m.employeeId) !== String(emp)) return false;
+      if (dept && (m.department || '') !== dept) return false;
+      return true;
+    });
+  }
+
+  function buildReportSummary(items) {
+    const map = new Map();
+    for (const m of items) {
+      const key = m.employeeId || m.employeeName || '—';
+      if (!map.has(key)) {
+        map.set(key, {
+          employeeId: m.employeeId || '',
+          fullName: m.employeeName || '—',
+          staffId: m.staffId || '',
+          department: m.department || '',
+          counts: { 'Завтрак': 0, 'Обед': 0, 'Ужин': 0, 'Специальное': 0 },
+          total: 0,
+          sum: 0
+        });
+      }
+      const row = map.get(key);
+      if (row.counts[m.mealType] !== undefined) row.counts[m.mealType]++;
+      row.total++;
+      row.sum += Number(m.price) || 0;
+      if (!row.staffId && m.staffId) row.staffId = m.staffId;
+      if (!row.department && m.department) row.department = m.department;
+    }
+    return [...map.values()].sort((a, b) => a.fullName.localeCompare(b.fullName, 'ru'));
+  }
+
+  function fillReportFilterOptions() {
+    const empSel = $('rEmployee');
+    const deptSel = $('rDepartment');
+    const curEmp = empSel.value;
+    const curDept = deptSel.value;
+
+    const employees = [...state.employees].sort((a, b) =>
+      (a.fullName || '').localeCompare(b.fullName || '', 'ru'));
+    empSel.innerHTML = '<option value="">Все сотрудники</option>' +
+      employees.map(e => `<option value="${esc(e.employeeId)}">${esc(e.fullName)}</option>`).join('');
+    empSel.value = curEmp;
+
+    const depts = [...new Set(state.employees.map(e => e.department).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'ru'));
+    deptSel.innerHTML = '<option value="">Все отделы</option>' +
+      depts.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join('');
+    deptSel.value = curDept;
+  }
+
+  function renderReport() {
+    const items = reportFilteredMeals();
+    const summary = buildReportSummary(items);
+    const totalSum = summary.reduce((a, r) => a + r.sum, 0);
+    const totalCount = items.length;
+    const people = summary.length;
+    const special = items.filter(m => m.mealType === 'Специальное').length;
+
+    $('reportStats').innerHTML = `
+      <div class="stat"><b>${people}</b><span>сотрудников</span></div>
+      <div class="stat"><b>${totalCount}</b><span>приёмов пищи</span></div>
+      <div class="stat"><b>${special}</b><span>спец. блюд</span></div>
+      <div class="stat"><b>${fmtMoney(totalSum)}</b><span>к удержанию</span></div>
+    `;
+
+    $('reportSummaryTable').innerHTML = (summary.map(r => `
+      <tr>
+        <td><b>${esc(r.fullName)}</b></td>
+        <td>${esc(r.staffId)}</td>
+        <td>${esc(r.department)}</td>
+        <td class="num">${r.counts['Завтрак']}</td>
+        <td class="num">${r.counts['Обед']}</td>
+        <td class="num">${r.counts['Ужин']}</td>
+        <td class="num">${r.counts['Специальное']}</td>
+        <td class="num">${r.total}</td>
+        <td class="num">${fmtMoney(r.sum)}</td>
+      </tr>`).join('') || `<tr><td colspan="9">Нет данных за период</td></tr>`) +
+      (summary.length ? `<tr class="report-total">
+        <td colspan="7">Итого</td>
+        <td class="num">${totalCount}</td>
+        <td class="num">${fmtMoney(totalSum)}</td>
+      </tr>` : '');
+
+    const details = [...items].sort((a, b) =>
+      String(a.timestamp || '').localeCompare(String(b.timestamp || '')));
+    $('reportDetailsTable').innerHTML = details.slice(0, 1000).map(m => `
+      <tr>
+        <td>${esc(mealDate(m))}</td>
+        <td>${esc(String(m.time || '').slice(0, 8))}</td>
+        <td>${esc(m.employeeName)}</td>
+        <td>${esc(m.staffId || '')}</td>
+        <td>${esc(m.department || '')}</td>
+        <td>${esc(m.mealType)}</td>
+        <td>${esc(m.note || '')}</td>
+        <td class="num">${fmtMoney(m.price)}</td>
+      </tr>`).join('') || `<tr><td colspan="8">Нет записей</td></tr>`;
+
+    const periodTxt = ($('rFrom').value || '…') + ' — ' + ($('rTo').value || '…');
+    setStatus('reportStatus', `Период: ${periodTxt}. Записей: ${totalCount}.`);
+  }
+
+  function periodLabel() {
+    const f = $('rFrom').value || 'all';
+    const t = $('rTo').value || 'all';
+    return `${f}_${t}`;
+  }
+
+  function exportReportXlsx() {
+    if (typeof XLSX === 'undefined') {
+      toast('Библиотека Excel ещё грузится, повторите', 'err');
+      return;
+    }
+    const items = reportFilteredMeals();
+    if (!items.length) return toast('Нет данных за период', 'err');
+
+    const summary = buildReportSummary(items);
+    const site = state.settings.siteName || '';
+    const periodTxt = ($('rFrom').value || '—') + ' — ' + ($('rTo').value || '—');
+
+    const wb = XLSX.utils.book_new();
+
+    const sumAoa = [
+      [`Отчёт по питанию${site ? ' — ' + site : ''}`],
+      [`Период: ${periodTxt}`],
+      [],
+      ['Сотрудник', 'Табельный №', 'Отдел', 'Завтраки', 'Обеды', 'Ужины', 'Другие', 'Всего', 'К удержанию, ₸']
+    ];
+    summary.forEach(r => sumAoa.push([
+      r.fullName, r.staffId, r.department,
+      r.counts['Завтрак'], r.counts['Обед'], r.counts['Ужин'], r.counts['Специальное'],
+      r.total, r.sum
+    ]));
+    sumAoa.push([
+      'ИТОГО', '', '', '', '', '', '',
+      items.length, summary.reduce((a, r) => a + r.sum, 0)
+    ]);
+    const wsSum = XLSX.utils.aoa_to_sheet(sumAoa);
+    wsSum['!cols'] = [{ wch: 26 }, { wch: 14 }, { wch: 16 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 16 }];
+    XLSX.utils.book_append_sheet(wb, wsSum, 'Сводка');
+
+    const detAoa = [['Дата', 'Время', 'Сотрудник', 'Табельный №', 'Отдел', 'Питание', 'Блюдо', 'Цена, ₸']];
+    [...items]
+      .sort((a, b) => String(a.timestamp || '').localeCompare(String(b.timestamp || '')))
+      .forEach(m => detAoa.push([
+        mealDate(m), String(m.time || '').slice(0, 8), m.employeeName, m.staffId || '',
+        m.department || '', m.mealType, m.note || '', Number(m.price) || 0
+      ]));
+    const wsDet = XLSX.utils.aoa_to_sheet(detAoa);
+    wsDet['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 26 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 28 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, wsDet, 'Детализация');
+
+    XLSX.writeFile(wb, `Отчет_питание_${periodLabel()}.xlsx`);
+    toast('Excel сформирован');
+  }
+
   function exportCsv() {
     const items = filteredMeals();
     const header = ['date', 'time', 'employeeName', 'department', 'mealType', 'price', 'note'];
@@ -366,6 +535,10 @@
         } else {
           stopCamera($('empVideo'));
           state.cameraOn = false;
+        }
+        if (btn.dataset.tab === 'reports') {
+          fillReportFilterOptions();
+          renderReport();
         }
       });
     });
@@ -478,6 +651,10 @@
     ['fFrom', 'fTo', 'fType'].forEach(id => $(id).addEventListener('change', renderMeals));
     $('exportCsvBtn').addEventListener('click', exportCsv);
 
+    ['rFrom', 'rTo', 'rEmployee', 'rDepartment'].forEach(id =>
+      $(id).addEventListener('change', renderReport));
+    $('exportXlsxBtn').addEventListener('click', exportReportXlsx);
+
     $('saveSettingsBtn').addEventListener('click', async () => {
       const pin = $('setPinConfirm').value.trim();
       if (!pin) return setStatus('setStatus', 'Введите текущий PIN', 'err');
@@ -538,7 +715,11 @@
     const today = todayInTz();
     $('fFrom').value = today;
     $('fTo').value = today;
+    // Отчёты по умолчанию — с начала текущего месяца по сегодня
+    $('rFrom').value = today.slice(0, 8) + '01';
+    $('rTo').value = today;
     await Promise.all([refreshEmployees(), refreshMeals()]);
+    fillReportFilterOptions();
     startEmpCamera();
   }
 

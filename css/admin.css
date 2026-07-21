@@ -259,6 +259,33 @@ th { color: var(--muted); font-weight: 600; font-size: 0.8rem; }
 .stat b { display: block; font-size: 1.4rem; }
 .stat span { color: var(--muted); font-size: 0.85rem; }
 
+.report-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.report-filters {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 8px;
+}
+@media (max-width: 800px) { .report-filters { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .report-filters { grid-template-columns: 1fr; } }
+.report-title {
+  margin: 20px 0 8px;
+  font-size: 1rem;
+  color: var(--muted);
+}
+tfoot td, .report-total td {
+  font-weight: 700;
+  border-top: 2px solid var(--line);
+}
+td.num, th.num { text-align: right; white-space: nowrap; }
+
 .toast {
   position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
   background: var(--ink); color: #fff; padding: 12px 16px; border-radius: 999px;
