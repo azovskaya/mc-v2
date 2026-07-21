@@ -179,7 +179,7 @@
 
   function fillSettingsForm() {
     const s = state.settings;
-    $('appTitle').textContent = s.siteName || 'Админка';
+    $('appTitle').textContent = s.siteName || 'Admin Panel';
     $('appSub').textContent = s.operator ? `Ответственный: ${s.operator}` : 'Управление точкой питания';
     $('setSite').value = s.siteName || '';
     $('setOperator').value = s.operator || '';
