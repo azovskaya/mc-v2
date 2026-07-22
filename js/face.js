@@ -249,6 +249,38 @@ async function captureFrame(videoEl, maxW = 360, quality = 0.55) {
   return '';
 }
 
+/** Миниатюра из того же кадра — без второго снимка с камеры. */
+function resizeDataUrl(dataUrl, maxW = 160, quality = 0.55) {
+  return new Promise(resolve => {
+    if (!isValidPhotoDataUrl(dataUrl)) {
+      resolve('');
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, maxW / img.naturalWidth);
+        const w = Math.max(1, Math.round(img.naturalWidth * scale));
+        const h = Math.max(1, Math.round(img.naturalHeight * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      } catch {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve('');
+    img.src = dataUrl;
+  });
+}
+
 async function computeDescriptorFromVideo(videoEl) {
   const hit = await detectFace(videoEl);
   if (!hit || hit.tooFar) return null;

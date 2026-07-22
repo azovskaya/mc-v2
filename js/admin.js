@@ -247,16 +247,14 @@
       $('camHint')?.classList.add('hidden');
       await ensureModelsAndCam();
 
-      // Один кадр: полное фото в Drive, миниатюра — только в таблице для списка
+      // Один снимок с камеры (не два — иначе миниатюра может поймать моргание)
       step('Фото…');
-      const photo = await captureFrame($('empVideo'), 420, 0.6);
-      if (!isValidPhotoDataUrl(photo)) {
+      const full = await captureFrame($('empVideo'), 420, 0.6);
+      if (!isValidPhotoDataUrl(full)) {
         setStatus('empStatus', 'Не удалось снять фото. Убедитесь, что в окошке видно ваше лицо, и нажмите ещё раз.', 'err');
         return;
       }
-      const thumb = await captureFrame($('empVideo'), 160, 0.55);
-      const full = photo;
-      const thumbOk = isValidPhotoDataUrl(thumb) ? thumb : photo;
+      const thumbOk = (await resizeDataUrl(full, 160, 0.55)) || full;
 
       step('Сканирование лица…');
       const desc = await computeDescriptorFromVideo($('empVideo'));
