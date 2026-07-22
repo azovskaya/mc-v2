@@ -104,9 +104,13 @@ function startFaceScan(videoEl, employees, { onStatus, onMatch }) {
     return;
   }
 
+  let busy = false;
   const tick = async () => {
+    if (busy || !_scanTimer) return;
+    busy = true;
     try {
       const hit = await detectFace(videoEl);
+      if (!_scanTimer) return;
       if (!hit) {
         _pending = { id: null, frames: [], ears: [] };
         onStatus?.('Подойдите ближе к камере', '');
@@ -148,6 +152,7 @@ function startFaceScan(videoEl, employees, { onStatus, onMatch }) {
         return;
       }
 
+      // Liveness: моргнуть ИЛИ небольшое движение головой (анти-фото)
       const ears = _pending.ears;
       const blinked = ears.some((e, i) => i > 0 && ears[i - 1] > FACE.EAR_BLINK_THRESHOLD && e < FACE.EAR_BLINK_THRESHOLD);
       const motion = descriptorVariance(_pending.frames) >= FACE.MIN_DESCRIPTOR_VAR;
@@ -163,6 +168,8 @@ function startFaceScan(videoEl, employees, { onStatus, onMatch }) {
     } catch (err) {
       onStatus?.('Ошибка камеры', 'err');
       console.error(err);
+    } finally {
+      busy = false;
     }
   };
 

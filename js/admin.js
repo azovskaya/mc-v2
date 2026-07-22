@@ -55,8 +55,11 @@
   }
 
   async function refreshMeals() {
-    const res = await apiGet('listMeals', { limit: 5000 });
+    const res = await apiGet('listMeals', { limit: 20000 });
     state.meals = res.items || [];
+    if ((res.items || []).length >= 20000) {
+      toast('Показаны последние 20000 записей — сузьте период для полного отчёта', 'err');
+    }
     renderMeals();
     if ($('tab-reports')?.classList.contains('show')) renderReport();
   }
@@ -311,7 +314,7 @@
     } finally {
       _savingEmp = false;
       btn.disabled = false;
-      btn.textContent = state.selectedId ? 'Обновить с Face ID' : origText;
+      btn.textContent = $('empId').value ? 'Обновить с Face ID' : 'Сохранить с Face ID';
     }
   }
 
@@ -633,6 +636,8 @@
 
     $('logoutBtn').addEventListener('click', () => {
       setAuthed(false);
+      stopCamera($('empVideo'));
+      state.cameraOn = false;
       show('lockView');
     });
 

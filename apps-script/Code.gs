@@ -102,7 +102,7 @@ function getOrCreateSheet_(name, headers) {
   }
   if (name === SHEET_MEALS) {
     ensureHeaders_(sheet, headers);
-    ensureTextColumns_(sheet, headers, ['date', 'time', 'price', 'note']);
+    ensureTextColumns_(sheet, headers, ['timestamp', 'date', 'time', 'price', 'note', 'mealId']);
   }
   if (name === SHEET_SETTINGS || name === SHEET_EMPLOYEES || name === SHEET_LOGS) {
     ensureHeaders_(sheet, headers);
@@ -156,6 +156,11 @@ function sheetToObjects_(sheet) {
 
 function normalizeCell_(v) {
   if (Object.prototype.toString.call(v) === '[object Date]') {
+    // date-only ячейки обычно приходят как 00:00:00; timestamp — с реальным временем
+    var hasTime = v.getHours() || v.getMinutes() || v.getSeconds();
+    if (hasTime) {
+      return Utilities.formatDate(v, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ssXXX");
+    }
     return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
   }
   return v;
@@ -205,6 +210,11 @@ function sha256_(text) {
     var v = (b < 0 ? b + 256 : b).toString(16);
     return v.length === 1 ? '0' + v : v;
   }).join('');
+}
+
+/** PIN всегда только цифры — одинаково при установке и проверке. */
+function normalizePin_(pin) {
+  return String(pin || '').replace(/\D/g, '');
 }
 
 /* ─── Employees ─── */
@@ -363,7 +373,7 @@ function saveMeal(body) {
       note: note
     };
 
-    sheet.appendRow(objectToRow_(MEAL_HEADERS, record));
+    sheet.appendRow(rowFromHeaders_(sheet, record));
 
     logEvent_({
       type: 'meal',
@@ -378,6 +388,15 @@ function saveMeal(body) {
   } finally {
     try { lock.releaseLock(); } catch (e) {}
   }
+}
+
+/** Пишет строку в порядке РЕАЛЬНЫХ заголовков листа. */
+function rowFromHeaders_(sheet, record) {
+  var lastCol = Math.max(sheet.getLastColumn(), 1);
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(String);
+  return headers.map(function (h) {
+    return record[h] !== undefined && record[h] !== null ? record[h] : '';
+  });
 }
 
 /* ─── Settings / PIN ─── */
@@ -419,7 +438,7 @@ function saveSettings(body) {
   var raw = getSettingsRaw_();
   var pinConfigured = !!(raw.pinHash && String(raw.pinHash).length > 10);
   if (pinConfigured) {
-    if (!body.pin || sha256_(String(body.pin)) !== String(raw.pinHash)) {
+    if (!body.pin || sha256_(normalizePin_(body.pin)) !== String(raw.pinHash)) {
       return { ok: false, status: 'auth', message: 'Неверный PIN' };
     }
   }
@@ -436,7 +455,7 @@ function setPin(body) {
   if (!body || !body.newPin) {
     return { ok: false, status: 'error', message: 'Укажите новый PIN' };
   }
-  var pin = String(body.newPin).replace(/\D/g, '');
+  var pin = normalizePin_(body.newPin);
   if (pin.length < 4 || pin.length > 8) {
     return { ok: false, status: 'error', message: 'PIN: 4–8 цифр' };
   }
@@ -444,7 +463,7 @@ function setPin(body) {
   var raw = getSettingsRaw_();
   var pinConfigured = !!(raw.pinHash && String(raw.pinHash).length > 10);
   if (pinConfigured) {
-    if (!body.currentPin || sha256_(String(body.currentPin)) !== String(raw.pinHash)) {
+    if (!body.currentPin || sha256_(normalizePin_(body.currentPin)) !== String(raw.pinHash)) {
       return { ok: false, status: 'auth', message: 'Неверный текущий PIN' };
     }
   }
@@ -459,7 +478,8 @@ function verifyPin(body) {
   if (!raw.pinHash) {
     return { ok: false, status: 'error', message: 'PIN ещё не задан — пройдите настройку' };
   }
-  var ok = body && body.pin && sha256_(String(body.pin)) === String(raw.pinHash);
+  var pin = normalizePin_(body && body.pin);
+  var ok = pin && sha256_(pin) === String(raw.pinHash);
   return ok
     ? { ok: true, status: 'ok' }
     : { ok: false, status: 'auth', message: 'Неверный PIN' };
