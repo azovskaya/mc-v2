@@ -5,8 +5,7 @@
     settings: {},
     current: null,
     matchScore: null,
-    busy: false,
-    photo: ''
+    busy: false
   };
 
   const els = {
@@ -54,7 +53,6 @@
     els.overlay.classList.remove('show');
     els.scanRing.classList.remove('ok');
     state.current = null;
-    state.photo = '';
     state.matchScore = null;
   }
 
@@ -65,7 +63,6 @@
       onStatus: (t, k) => setPill(t, k || ''),
       onMatch: async ({ employee, distance }) => {
         state.matchScore = Math.round((1 - distance) * 1000) / 1000;
-        try { state.photo = await captureFrame(els.video); } catch { state.photo = ''; }
         setPill(employee.fullName, 'ok');
         showChoice(employee);
       }
@@ -92,7 +89,6 @@
         siteName: state.settings.siteName || local.siteName || '',
         operator: state.settings.operator || local.operator || '',
         matchScore: state.matchScore,
-        photo: state.photo,
         verified: true
       });
 

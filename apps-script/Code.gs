@@ -354,7 +354,7 @@ function saveMeal(body) {
       siteName: body.siteName || '',
       operator: body.operator || '',
       matchScore: body.matchScore !== undefined ? body.matchScore : '',
-      photo: preparePhoto_(body.photo || '', 'meal_' + Utilities.getUuid() + '.jpg'),
+      photo: '',
       verified: body.verified !== false,
       note: note
     };
@@ -367,7 +367,6 @@ function saveMeal(body) {
       employeeName: record.employeeName,
       status: 'ok',
       message: mealType + (note ? (': ' + note) : ''),
-      photo: record.photo,
       matchScore: record.matchScore
     });
 
