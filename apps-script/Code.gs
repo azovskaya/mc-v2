@@ -7,7 +7,8 @@
  *  3. Выполните setupSheets → разрешите доступ
  *  4. Развернуть → Новое развертывание → Веб-приложение
  *       Запуск от имени: Я | Доступ: Все
- *  5. Скопируйте URL (.../exec) в мастер настройки админки
+ *  5. Вставьте URL (.../exec) в js/config.js → apiUrl
+ *  6. Админка: задайте PIN один раз. Дальше данные — в таблице (Excel).
  *
  * Версия API: 2.0
  */
@@ -555,6 +556,21 @@ function setupSheets() {
   getOrCreateSheet_(SHEET_MEALS, MEAL_HEADERS);
   getOrCreateSheet_(SHEET_LOGS, LOG_HEADERS);
   getOrCreateSheet_(SHEET_SETTINGS, SETTINGS_HEADERS);
-  // Часовой пояс скрипта — в настройках проекта Apps Script
-  Logger.log('mc-v2: листы Employees, Meals, Logs, Settings готовы.');
+
+  // Дефолты в Excel (лист Settings) — правятся прямо в таблице, без мастера
+  var defaults = {
+    siteName: 'Столовая',
+    operator: '',
+    timezone: 'Asia/Almaty',
+    priceBr: '',
+    priceLu: '',
+    priceDi: '',
+    setupDone: 'false'
+  };
+  var raw = getSettingsRaw_();
+  Object.keys(defaults).forEach(function (k) {
+    if (raw[k] === undefined || raw[k] === '') upsertSetting_(k, defaults[k]);
+  });
+
+  Logger.log('mc-v2: листы Employees, Meals, Logs, Settings готовы. Данные правятся в таблице.');
 }

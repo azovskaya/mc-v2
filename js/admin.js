@@ -1,5 +1,6 @@
 /* Admin panel for Meal Kiosk v2 */
 (() => {
+  // localStorage — чтобы после закрытия вкладки не проходить мастер/PIN снова
   const SESSION_KEY = 'mc_v2_admin_ok';
 
   const state = {
@@ -33,12 +34,12 @@
   }
 
   function isAuthed() {
-    return sessionStorage.getItem(SESSION_KEY) === '1';
+    return localStorage.getItem(SESSION_KEY) === '1';
   }
 
   function setAuthed(v) {
-    if (v) sessionStorage.setItem(SESSION_KEY, '1');
-    else sessionStorage.removeItem(SESSION_KEY);
+    if (v) localStorage.setItem(SESSION_KEY, '1');
+    else localStorage.removeItem(SESSION_KEY);
   }
 
   async function refreshSettings() {
@@ -727,26 +728,55 @@
     bindEvents();
 
     const api = getApiUrl();
+    // Подставляем URL из config.js / localStorage в форму на всякий случай
+    if (api && $('wizApi')) $('wizApi').value = api;
+
     if (!api) {
       show('setupView');
+      setStatus('wizStatus', 'Укажите URL один раз (или пропишите его в js/config.js)', 'err');
       return;
     }
 
+    // Запоминаем URL из конфига локально — дальше мастер не нужен
+    if (!loadLocal().apiUrl) setApiUrl(api);
+
     try {
       const s = await refreshSettings();
-      // Без заданного PIN войти нельзя — всегда показываем мастер,
-      // чтобы после сброса pinHash можно было настроить заново.
+      // Настройки/цены/сотрудники уже в Google Таблице (Excel).
+      // Мастер — только если PIN ещё не задан.
       if (!s.hasPin) {
-        $('wizApi').value = api;
         if (s.siteName) $('wizSite').value = s.siteName;
         if (s.operator) $('wizOperator').value = s.operator;
+        if (s.priceBr) $('wizBr').value = s.priceBr;
+        if (s.priceLu) $('wizLu').value = s.priceLu;
+        if (s.priceDi) $('wizDi').value = s.priceDi;
         show('setupView');
         return;
       }
+
+      // Прямой вход по ссылке: admin.html?pin=1234
+      const pinQ = (new URLSearchParams(location.search).get('pin') || '').trim();
+      if (pinQ) {
+        const verify = await apiPost('verifyPin', { pin: pinQ });
+        if (verify.ok) {
+          setAuthed(true);
+          // Убираем PIN из адресной строки после входа
+          try {
+            const clean = new URL(location.href);
+            clean.searchParams.delete('pin');
+            history.replaceState({}, '', clean.pathname + clean.search + clean.hash);
+          } catch {}
+          await enterApp();
+          return;
+        }
+        show('lockView');
+        setStatus('lockStatus', 'Неверный PIN в ссылке', 'err');
+        return;
+      }
+
       if (isAuthed()) await enterApp();
       else show('lockView');
     } catch (e) {
-      // URL битый — снова мастер
       $('wizApi').value = api;
       setStatus('wizStatus', String(e.message || e), 'err');
       show('setupView');

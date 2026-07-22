@@ -4,20 +4,22 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Admin Panel — Питание v2</title>
-  <link rel="stylesheet" href="./css/admin.css?v=8" />
+  <link rel="stylesheet" href="./css/admin.css?v=10" />
+  <script>window.MC_CONFIG={apiUrl:'https://script.google.com/macros/s/AKfycbzBjxJ6vs5sgxoGgHQWtFOHhz91K85dWjdhtFaeJ3pYPsZEufG7yXU47CCTr0610N6i/exec'};</script>
   <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script defer src="./js/shared.js?v=8"></script>
-  <script defer src="./js/face.js?v=8"></script>
-  <script defer src="./js/admin.js?v=8"></script>
+  <script defer src="./js/config.js?v=10"></script>
+  <script defer src="./js/shared.js?v=10"></script>
+  <script defer src="./js/face.js?v=10"></script>
+  <script defer src="./js/admin.js?v=10"></script>
 </head>
 <body>
   <div class="wrap">
     <!-- First-time setup -->
     <section class="setup" id="setupView">
       <div class="card setup-box">
-        <h1 style="font-family:var(--display);margin:0 0 8px;font-size:1.8rem">Новое заведение</h1>
-        <p class="hint">Один раз: URL Google Apps Script, название и PIN администратора. Потом всё редактируется в настройках.</p>
+        <h1 style="font-family:var(--display);margin:0 0 8px;font-size:1.8rem">Первый запуск</h1>
+        <p class="hint">Один раз: URL Apps Script и PIN. Сотрудники, питание, цены и название точки — в Google Таблице (Excel). Чтобы не вводить URL снова — пропишите его в <code>js/config.js</code>.</p>
 
         <div class="field">
           <label for="wizApi">URL веб-приложения (.../exec)</label>
@@ -213,7 +215,7 @@
       <div class="panel" id="tab-settings">
         <div class="card">
           <h2>Точка и цены</h2>
-          <p class="hint">Меняется только под PIN. На киоске настройки не сбиваются — они на сервере.</p>
+          <p class="hint">Хранится в Google Таблице (лист Settings). Можно править и здесь, и прямо в Excel.</p>
           <div class="field"><label for="setSite">Название</label><input id="setSite" /></div>
           <div class="field"><label for="setOperator">Ответственный</label><input id="setOperator" /></div>
           <div class="grid2">
@@ -244,7 +246,8 @@
             <button class="btn btn-ghost" type="button" id="pingBtn">Проверить</button>
           </div>
           <div class="status" id="apiStatus"></div>
-          <p class="hint" style="margin-top:12px">Киоск: <code id="kioskLink"></code></p>
+          <p class="hint" style="margin-top:12px">Чтобы URL не спрашивал снова на каждом устройстве — вставьте его в <code>js/config.js</code> → <code>apiUrl</code>.</p>
+          <p class="hint">Киоск: <code id="kioskLink"></code></p>
         </div>
       </div>
     </section>

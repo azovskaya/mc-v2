@@ -13,13 +13,20 @@ function saveLocal(patch) {
   return cur;
 }
 
+/** URL из ?api= → localStorage → js/config.js (постоянный для всех устройств). */
+function getConfiguredApiUrl() {
+  return String(window.MC_CONFIG?.apiUrl || '').trim();
+}
+
 function getApiUrl() {
   const q = new URLSearchParams(location.search).get('api');
   if (q) {
     saveLocal({ apiUrl: q.trim() });
     return q.trim();
   }
-  return (loadLocal().apiUrl || '').trim();
+  const saved = (loadLocal().apiUrl || '').trim();
+  if (saved) return saved;
+  return getConfiguredApiUrl();
 }
 
 function setApiUrl(url) {

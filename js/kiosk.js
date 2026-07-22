@@ -160,11 +160,14 @@
     bindUi();
 
     if (!getApiUrl()) {
-      setPill('Сначала настройте заведение в админке', 'err');
-      els.siteLabel.textContent = 'Откройте admin.html';
-      toast('Нет URL сервера — откройте админку', 'err');
+      setPill('Сначала укажите URL в js/config.js', 'err');
+      els.siteLabel.textContent = 'Нет URL сервера';
+      toast('Пропишите apiUrl в js/config.js или откройте админку', 'err');
       return;
     }
+
+    // Закрепляем URL из config.js локально
+    if (!loadLocal().apiUrl && getConfiguredApiUrl()) setApiUrl(getConfiguredApiUrl());
 
     try {
       setPill('Подключение…');
