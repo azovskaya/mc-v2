@@ -247,16 +247,16 @@
       $('camHint')?.classList.add('hidden');
       await ensureModelsAndCam();
 
-      // Сначала кадр (Safari надёжнее, пока видео только что играет), потом Face ID
+      // Один кадр: полное фото в Drive, миниатюра — только в таблице для списка
       step('Фото…');
       const photo = await captureFrame($('empVideo'), 420, 0.6);
-      const photoThumb = await captureFrame($('empVideo'), 160, 0.55);
-      if (!isValidPhotoDataUrl(photoThumb) && !isValidPhotoDataUrl(photo)) {
+      if (!isValidPhotoDataUrl(photo)) {
         setStatus('empStatus', 'Не удалось снять фото. Убедитесь, что в окошке видно ваше лицо, и нажмите ещё раз.', 'err');
         return;
       }
-      const thumb = isValidPhotoDataUrl(photoThumb) ? photoThumb : photo;
-      const full = isValidPhotoDataUrl(photo) ? photo : photoThumb;
+      const thumb = await captureFrame($('empVideo'), 160, 0.55);
+      const full = photo;
+      const thumbOk = isValidPhotoDataUrl(thumb) ? thumb : photo;
 
       step('Сканирование лица…');
       const desc = await computeDescriptorFromVideo($('empVideo'));
@@ -293,7 +293,7 @@
         position: $('empPos').value.trim(),
         faceDescriptor: desc.join(','),
         photo: full,
-        photoThumb: thumb,
+        photoThumb: thumbOk,
         active: true
       });
       if (!res.ok) {
@@ -302,7 +302,7 @@
       }
       // Мгновенно показываем в списке даже до перезагрузки с сервера
       if (res.employee) {
-        res.employee.photoThumb = res.employee.photoThumb || thumb;
+        res.employee.photoThumb = res.employee.photoThumb || thumbOk;
       }
       toast(editingId ? 'Сотрудник обновлён' : 'Сотрудник добавлен');
       await refreshEmployees();

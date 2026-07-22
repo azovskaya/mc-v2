@@ -238,8 +238,12 @@ function saveEmployee(body) {
     staffId: String(body.staffId || '').slice(0, 40),
     department: String(body.department || '').slice(0, 80),
     position: String(body.position || '').slice(0, 80),
-    photo: preparePhoto_(body.photo || (existing && existing.photo) || '', 'emp_' + id + '.jpg'),
-    // Мелкая base64-миниатюра хранится прямо в ячейке — не зависит от Drive
+    photo: preparePhoto_(
+      body.photo || (existing && existing.photo) || '',
+      'emp_' + id + '.jpg',
+      existing && existing.photo
+    ),
+    // Миниатюра только в ячейке таблицы (base64), в Drive не пишется
     photoThumb: truncatePhoto_(body.photoThumb || (existing && existing.photoThumb) || ''),
     faceDescriptor: body.faceDescriptor || (existing && existing.faceDescriptor) || '',
     active: body.active !== false,
@@ -525,16 +529,31 @@ function savePhotoToDrive_(base64Data, fileName) {
   var mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
   var bytes = Utilities.base64Decode(parts[1]);
   var blob = Utilities.newBlob(bytes, mime, fileName || ('photo_' + Date.now() + '.jpg'));
-  var file = getPhotoFolder_().createFile(blob);
+  var folder = getPhotoFolder_();
+
+  // Одно фото на сотрудника: удаляем старые файлы с тем же именем
+  if (fileName) {
+    var existing = folder.getFilesByName(fileName);
+    while (existing.hasNext()) {
+      try { existing.next().setTrashed(true); } catch (e) {}
+    }
+  }
+
+  var file = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   return driveImageUrl_(file.getId());
 }
 
-function preparePhoto_(photo, fileName) {
+/** Новое фото сотрудника → Drive. Старое по URL тоже убираем. */
+function preparePhoto_(photo, fileName, oldPhotoUrl) {
   if (!photo) return '';
   var s = String(photo).trim();
   if (!s) return '';
   if (s.indexOf('data:image') === 0) {
+    var oldId = extractDriveFileId_(oldPhotoUrl || '');
+    if (oldId) {
+      try { DriveApp.getFileById(oldId).setTrashed(true); } catch (e) {}
+    }
     try { return savePhotoToDrive_(s, fileName); }
     catch (e) { return truncatePhoto_(s); }
   }
